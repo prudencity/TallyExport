@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(form_TallyExport));
             this.DatePanel = new System.Windows.Forms.GroupBox();
             this.DatePicker = new System.Windows.Forms.DateTimePicker();
             this.btn_Export = new System.Windows.Forms.Button();
@@ -76,6 +77,7 @@
             this.Controls.Add(this.btn_Export);
             this.Controls.Add(this.DatePanel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "form_TallyExport";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;

@@ -1497,6 +1497,6 @@ WHERE emi.C_SId = loan.L_Id
  * 
  * The default FINANCE.STL file has the following contents:
  * 
- * Data Source=ADHISH-PC\SQLEXPRESS;Initial Catalog=FinanceManagement;Trusted_Connection=Yes;pooling=false;MultipleActiveResultSets = True;
+ * Data Source=[SERVERNAME]\SQLEXPRESS;Initial Catalog=FinanceManagement;Trusted_Connection=Yes;pooling=false;MultipleActiveResultSets = True;
  * 
  * */
