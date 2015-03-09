@@ -7,11 +7,15 @@ using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using System.Xml;
+using System.Configuration;
 
 namespace TallyExport
 {
     public partial class form_TallyExport : Form
     {
+
+        string value = ConfigurationManager.AppSettings["TallyExportDir"];
+
         public form_TallyExport()
         {
             InitializeComponent();
@@ -31,8 +35,8 @@ namespace TallyExport
             Export_Ledgers(input_date);
             Export_Transactions(input_date);
 
-            checkFile1 = System.IO.File.Exists("C:\\Tally\\m-" + input_date);
-            checkFile2 = System.IO.File.Exists("C:\\Tally\\v-" + input_date);
+            checkFile1 = System.IO.File.Exists(String.IsNullOrEmpty(value) ? "C:\\Tally" : value + "\\m-" + input_date);
+            checkFile2 = System.IO.File.Exists(String.IsNullOrEmpty(value) ? "C:\\Tally" : value + "\\v-" + input_date);
 
             if (checkFile1 == true && checkFile2 == true)
             {
@@ -334,7 +338,7 @@ namespace TallyExport
 
             Dt1.Dispose();
 
-            doc.Save("C:\\Tally\\m-" + input_date);
+            doc.Save(String.IsNullOrEmpty(value)? "C:\\Tally" : value + "\\m-" + input_date);
         }
         #endregion
 
@@ -380,8 +384,36 @@ namespace TallyExport
             XmlNode requestDataNode = doc.CreateElement("REQUESTDATA");
             importDataNode.AppendChild(requestDataNode);
 
-            String S1 = "SELECT case when cr ='0' then 'Cash' else cr end as cr, dr, amount, CONVERT(VARCHAR(10), dt, 112) as dt FROM (select l.L_Id as id, ISNULL(p.P_Name,'0') as cr, l.L_LoanAmount as amount, l.L_FormDate as dt from LoanSanction l left outer join  PartyMaster as p on l.L_BankId = p.P_Id) as t_cr, (select l.L_Id as id, p.P_Name as dr from LoanSanction l, PartyMaster as p WHERE l.L_PartyId = p.P_Id) as t_dr where t_cr.id = t_dr.id AND dt in ('" + input_date + "');";
-            DataTable Dt1 = ObjData.GetDataTable(S1);
+            String LoanDisbursed = @"SELECT CASE 
+		WHEN cr = '0'
+			THEN 'Cash'
+		ELSE cr
+		END AS cr
+	,dr
+	,amount
+	,CONVERT(VARCHAR(10), dt, 112) AS dt
+	,ck_no
+FROM (
+	SELECT l.L_Id AS id
+		,ISNULL(p.P_Name, '0') AS cr
+		,l.L_LoanAmount AS amount
+		,l.L_ChequeDate AS dt
+		,l.L_ChequeNo AS ck_no
+	FROM LoanSanction l
+	LEFT JOIN PartyMaster AS p ON l.L_BankId = p.P_Id
+	) AS t_cr
+	,(
+		SELECT l.L_Id AS id
+			,p.P_Name AS dr
+		FROM LoanSanction l
+			,PartyMaster AS p
+		WHERE l.L_PartyId = p.P_Id
+		) AS t_dr
+WHERE t_cr.id = t_dr.id
+	AND dt IN ('" + input_date + "');";
+
+
+            DataTable Dt1 = ObjData.GetDataTable(LoanDisbursed);
 
             for (int i = 0; i < Dt1.Rows.Count; i++)
             {
@@ -389,6 +421,7 @@ namespace TallyExport
                 String dr = Dt1.Rows[i]["dr"].ToString();
                 String amount = Math.Round(Convert.ToDouble(Dt1.Rows[i]["amount"]), 0).ToString();
                 String dt = Dt1.Rows[i]["dt"].ToString();
+                String ck_no = Dt1.Rows[i]["ck_no"].ToString();
 
                 String guid = input_date + "-DISBURSE-" + cr + "-" + dr + "-" + amount + "-" + i.ToString();            //REMOTEID
 
@@ -420,7 +453,7 @@ namespace TallyExport
                 voucherNode.AppendChild(guidNode);
 
                 XmlNode narrationNode = doc.CreateElement("NARRATION");
-                narrationNode.AppendChild(doc.CreateTextNode("Loan Disbursed to " + dr + " of amount " + amount));                  //Data Pull
+                narrationNode.AppendChild(doc.CreateTextNode("Loan Disbursed to " + dr + " of amount " + amount + (String.IsNullOrEmpty(ck_no)? "": " Check no:" + ck_no)));               //Data Pull
                 voucherNode.AppendChild(narrationNode);
 
 
@@ -847,8 +880,19 @@ WHERE t_cr.id = t_dr.id
                 allledgerentriesNode1.AppendChild(amount1Node);
             }
 
-            String S3 = "SELECT 'Interest A/c' as cr, party.P_Name as dr, pmts.F_InterestAmount amount, CONVERT(VARCHAR(10), pmts.F_Date, 112) as dt  from AccountForeClosure as pmts, LoanSanction as loan, PartyMaster as party where pmts.F_SId = loan.L_Id AND loan.L_PartyId = party.P_Id AND pmts.F_Date in ('" + input_date + "');";
-            DataTable Dt3 = ObjData.GetDataTable(S3);
+            String ForeClosure_Interest = @"SELECT 'Interest A/c' AS cr
+	,party.P_Name AS dr
+	,pmts.F_InterestAmount amount
+	,CONVERT(VARCHAR(10), pmts.F_Date, 112) AS dt
+FROM AccountForeClosure AS pmts
+	,LoanSanction AS loan
+	,PartyMaster AS party
+WHERE pmts.F_InterestAmount <> 0
+	AND pmts.F_SId = loan.L_Id
+	AND loan.L_PartyId = party.P_Id
+	AND pmts.F_Date IN ('" + input_date + "');";
+
+            DataTable Dt3 = ObjData.GetDataTable(ForeClosure_Interest);
 
             for (int i = 0; i < Dt3.Rows.Count; i++)
             {
@@ -1476,7 +1520,7 @@ WHERE emi.C_SId = loan.L_Id
                 allledgerentriesNode1.AppendChild(amount1Node);
             }
 
-            doc.Save("C:\\Tally\\v-" + input_date);
+            doc.Save(String.IsNullOrEmpty(value) ? "C:\\Tally" : value + "\\v-" + input_date);
 
             Dt1.Dispose();
             Dt2.Dispose();
